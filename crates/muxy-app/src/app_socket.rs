@@ -2,14 +2,15 @@
 //! reply per connection, from processes of this user only.
 
 use std::io::{self, Write};
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use muxy_app_core::browser::api::{Request, encode_reply};
+use muxy_protocol::transport::{LocalListener, LocalStream};
 use serde_json::Value;
 
 /// Requests answered at once; more wait for a free slot.
@@ -40,14 +41,15 @@ impl Drop for AppSocket {
 
 /// Listens at `path`, unless another app already answers there.
 pub(crate) fn listen(path: &Path) -> io::Result<(AppSocket, async_channel::Receiver<Incoming>)> {
-    if UnixStream::connect(path).is_ok() {
+    if LocalStream::connect(path).is_ok() {
         return Err(io::Error::new(
             io::ErrorKind::AddrInUse,
             "another Muxy app answers browser commands",
         ));
     }
     let _ = std::fs::remove_file(path);
-    let listener = UnixListener::bind(path)?;
+    let listener = LocalListener::bind(path)?;
+    #[cfg(unix)]
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
     let (requests, incoming) = async_channel::bounded(64);
     let busy = Arc::new(AtomicUsize::new(0));
@@ -86,7 +88,7 @@ pub(crate) fn listen(path: &Path) -> io::Result<(AppSocket, async_channel::Recei
     ))
 }
 
-fn answer(mut stream: UnixStream, requests: &async_channel::Sender<Incoming>) -> io::Result<()> {
+fn answer(mut stream: LocalStream, requests: &async_channel::Sender<Incoming>) -> io::Result<()> {
     stream.set_read_timeout(Some(Duration::from_secs(10)))?;
     let result = match Request::read(&stream) {
         Ok(request) => {
@@ -103,4 +105,49 @@ fn answer(mut stream: UnixStream, requests: &async_channel::Sender<Incoming>) ->
     };
     stream.write_all(&encode_reply(&result))?;
     stream.flush()
+}
+
+/// A folder short enough for test sockets.
+#[cfg(test)]
+pub(crate) fn test_socket_folder() -> PathBuf {
+    if cfg!(windows) {
+        std::env::temp_dir()
+    } else {
+        PathBuf::from("/tmp")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use muxy_app_core::browser::api::{CallError, call};
+    use serde_json::{Map, json};
+
+    #[test]
+    fn requests_reach_the_app_and_replies_reach_the_client() -> io::Result<()> {
+        let directory = tempfile::Builder::new().tempdir_in(test_socket_folder())?;
+        let path = directory.path().join("app.sock");
+        let (_socket, incoming) = listen(&path)?;
+        std::thread::spawn(move || {
+            while let Ok(request) = incoming.recv_blocking() {
+                let verb = request.request.verb.clone();
+                request.reply(if verb == "browser.list" {
+                    Ok(json!([]))
+                } else {
+                    Err(format!("unknown command {verb}"))
+                });
+            }
+        });
+        let timeout = Duration::from_secs(5);
+        assert_eq!(
+            call(&path, &Request::new("browser.list", Map::new()), timeout).ok(),
+            Some(json!([]))
+        );
+        assert!(matches!(
+            call(&path, &Request::new("browser.nope", Map::new()), timeout),
+            Err(CallError::Failed(error)) if error == "unknown command browser.nope"
+        ));
+        assert!(listen(&path).is_err());
+        Ok(())
+    }
 }

@@ -19,6 +19,7 @@ use crate::session::metadata::Metadata;
 use crate::session::{
     AttachmentEvent, AttachmentId, AttachmentSink, SessionCommand, SessionHandle,
 };
+use crate::spawn::Shell;
 
 const TICK: Duration = Duration::from_millis(16);
 const SYNC_TIMEOUT: Duration = Duration::from_secs(1);
@@ -78,7 +79,7 @@ struct Attachment {
 )]
 struct Owner {
     info: SessionInfo,
-    pty: Pty,
+    shell: Shell,
     terminal: Terminal,
     metadata: Metadata,
     progress: super::SharedProgress,
@@ -122,7 +123,7 @@ struct Owner {
 )]
 pub(crate) fn start(
     info: SessionInfo,
-    mut pty: Pty,
+    mut shell: Shell,
     size: Size,
     history_budget_bytes: usize,
     archive: Archive,
@@ -133,7 +134,9 @@ pub(crate) fn start(
     let id = info.id.get();
     let (sender, receiver) = mpsc::channel();
     let (ready_sender, ready) = mpsc::channel();
-    pty.start_reader(sender.clone())
+    shell
+        .pty
+        .start_reader(sender.clone())
         .map_err(ServerError::spawn_failed)?;
 
     let progress = super::SharedProgress::default();
@@ -159,17 +162,17 @@ pub(crate) fn start(
                 }) {
                     Ok(terminal) => terminal,
                     Err(error) => {
-                        let _ = pty.kill();
-                        let _ = pty.wait();
+                        let _ = shell.pty.kill();
+                        let _ = shell.pty.wait();
                         let _ = ready_sender.send(Err(ServerError::spawn_failed(error)));
                         return;
                     }
                 };
-            let input = match start_input(&mut pty, failed) {
+            let input = match start_input(&mut shell.pty, failed) {
                 Ok(input) => input,
                 Err(error) => {
-                    let _ = pty.kill();
-                    let _ = pty.wait();
+                    let _ = shell.pty.kill();
+                    let _ = shell.pty.wait();
                     let _ = ready_sender.send(Err(error));
                     return;
                 }
@@ -189,7 +192,7 @@ pub(crate) fn start(
                 program_reports: 0,
                 seen_reports: 0,
                 info: session,
-                pty,
+                shell,
                 terminal,
                 size,
                 events: receiver,
@@ -263,8 +266,8 @@ fn start_input(
 impl Owner {
     fn run(mut self) -> ExitReason {
         let reason = self.serve().unwrap_or_else(|_| {
-            let _ = self.pty.kill();
-            self.pty.wait().map_or(ExitReason::Ended, exit_reason)
+            let _ = self.shell.pty.kill();
+            self.shell.pty.wait().map_or(ExitReason::Ended, exit_reason)
         });
         self.drain_output();
         self.update_metadata();
@@ -307,7 +310,7 @@ impl Owner {
                     let _ = reply.send(result);
                 }
                 Wake::Event(OwnerEvent::Command(SessionCommand::CellSize(cell))) => {
-                    self.pty.set_cell_size(cell)?;
+                    self.shell.pty.set_cell_size(cell)?;
                     self.terminal.set_cell_size(cell)?;
                     self.output_pending = true;
                 }
@@ -376,7 +379,7 @@ impl Owner {
                 Wake::Orphaned => return self.terminate(ExitReason::ServerStopped),
             }
             if self.output_state == OutputState::Closed
-                && let Some(status) = self.pty.try_wait()
+                && let Some(status) = self.shell.pty.try_wait()
             {
                 return Ok(exit_reason(status));
             }
@@ -431,7 +434,7 @@ impl Owner {
         self.terminal.feed(bytes);
         if self.terminal.program_reports() != self.program_reports {
             self.program_reports = self.terminal.program_reports();
-            self.program_group = self.pty.foreground_pid();
+            self.program_group = self.shell.pty.foreground_pid();
         }
         if self.terminal.synchronized_output()? {
             self.synchronized_since.get_or_insert_with(Instant::now);
@@ -478,7 +481,7 @@ impl Owner {
     }
 
     fn resize(&mut self, size: Size) -> Result<(), Fault> {
-        self.pty.resize(size.into())?;
+        self.shell.pty.resize(size.into())?;
         self.terminal.resize(size)?;
         self.size = size;
         self.resize_pending = true;
@@ -731,7 +734,7 @@ impl Owner {
                     .unwrap_or_else(std::sync::PoisonError::into_inner) = *progress;
             }
         }
-        let events = self.metadata.update(&self.pty, terminal);
+        let events = self.metadata.update(&self.shell, terminal);
         if events.iter().any(|event| {
             matches!(
                 event,
@@ -805,7 +808,7 @@ impl Owner {
     /// the detector hasn't seen counts once after its program has gone, so a
     /// final `done` still finishes the agent's work.
     fn reported_status(&mut self) -> Option<muxy_terminal::ProgramStatus> {
-        let group = self.pty.foreground_pid();
+        let group = self.shell.pty.foreground_pid();
         let shell = self.metadata.shell_foreground;
         if shell || group != self.program_group {
             self.terminal.end_program_status();
@@ -912,8 +915,8 @@ impl Owner {
     }
 
     fn terminate(&mut self, reason: ExitReason) -> Result<ExitReason, Fault> {
-        self.pty.kill()?;
-        self.pty.wait()?;
+        self.shell.pty.kill()?;
+        self.shell.pty.wait()?;
         Ok(reason)
     }
 

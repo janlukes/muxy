@@ -278,9 +278,9 @@ impl ProjectPicker {
                                 SEARCH_RESULT_LIMIT,
                                 &cancelled,
                             );
-                            snapshot
-                                .results
-                                .retain(|result| Path::new(&result.path).is_dir());
+                            snapshot.results.retain(|result| {
+                                Path::new(&path_service::to_native(&result.path)).is_dir()
+                            });
                             snapshot
                         })
                         .await;
@@ -770,7 +770,14 @@ impl AppModel {
                     && self.project_listed(project)
                     && !project.is_remote_home()
             })
-            .map(|project| project.directory.to_string_lossy().into_owned())
+            .map(|project| {
+                let path = project.directory.to_string_lossy();
+                if server.is_local() {
+                    path_service::from_native(&path)
+                } else {
+                    path.into_owned()
+                }
+            })
             .collect()
     }
 
@@ -1001,6 +1008,15 @@ impl AppModel {
     }
 
     fn open_terminal_at(&mut self, server: ServerId, path: &Path, cx: &mut Context<Self>) {
+        let native;
+        let path = if server.is_local() {
+            native = PathBuf::from(path_service::to_native(&path_service::from_native(
+                &path.to_string_lossy(),
+            )));
+            native.as_path()
+        } else {
+            path
+        };
         if self.close_prompt.is_some() {
             return;
         }
@@ -1031,7 +1047,8 @@ impl AppModel {
         if self.close_prompt.is_some() {
             return;
         }
-        let path = PathBuf::from(path_service::standardize(path));
+        let standardized = path_service::standardize(path);
+        let path = PathBuf::from(path_service::to_native(&standardized));
         if !path.exists() && create_if_missing {
             let window = self.window;
             let message = tr!(
@@ -1108,7 +1125,7 @@ impl AppModel {
     }
 
     fn open_folder(&mut self, folder: PathBuf, cx: &mut Context<Self>) {
-        let canonical = folder.canonicalize().ok();
+        let canonical = muxy_core::files::canonicalize(&folder).ok();
         let existing = self
             .state
             .projects()
@@ -1116,7 +1133,7 @@ impl AppModel {
             .find(|project| {
                 project.server_id.is_local()
                     && canonical.is_some()
-                    && project.directory.canonicalize().ok() == canonical
+                    && muxy_core::files::canonicalize(&project.directory).ok() == canonical
             })
             .map(|project| project.id);
         match existing {
@@ -1147,13 +1164,20 @@ impl AppModel {
     }
 
     fn project_at(&self, server: ServerId, path: &str) -> Option<muxy_app_core::ProjectId> {
-        let path = path_service::standardize(path);
+        let normalize = |path: &str| {
+            path_service::standardize(&if server.is_local() {
+                path_service::from_native(path)
+            } else {
+                path.to_owned()
+            })
+        };
+        let path = normalize(path);
         self.state
             .projects()
             .iter()
             .find(|project| {
                 project.server_id == server
-                    && path_service::standardize(&project.directory.to_string_lossy()) == path
+                    && normalize(&project.directory.to_string_lossy()) == path
             })
             .map(|project| project.id)
     }
@@ -1260,16 +1284,11 @@ async fn create_prompt(
 }
 
 pub(crate) fn display_path(path: &Path) -> String {
-    if let Some(home) = std::env::home_dir()
-        && let Ok(relative) = path.strip_prefix(home)
-    {
-        if relative.as_os_str().is_empty() {
-            "~".into()
-        } else {
-            format!("~/{}", relative.display())
-        }
-    } else {
-        path.to_string_lossy().into_owned()
+    match muxy_core::paths::home_dir() {
+        Ok(home) => muxy_core::paths::shorten_home(path, &home)
+            .to_string_lossy()
+            .into_owned(),
+        Err(_) => path.to_string_lossy().into_owned(),
     }
 }
 

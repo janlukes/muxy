@@ -1,6 +1,7 @@
 import importlib.util
 import shutil
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -73,12 +74,23 @@ class StampTests(unittest.TestCase):
 
     def test_stamp_changes_only_workspace_versions_and_is_repeatable(self):
         before = {name: (self.root / name).read_text() for name in ("Cargo.toml", "Cargo.lock")}
+        local_names = {
+            tomllib.loads(crate.read_text())["package"]["name"]
+            for crate in self.root.glob("crates/*/Cargo.toml")
+        }
         release.stamp_version(self.root, "2.0.0-beta.1234")
         release.stamp_version(self.root, "2.0.0-beta.1234")
         for name, original in before.items():
+            expected = tomllib.loads(original)
+            if name == "Cargo.toml":
+                expected["workspace"]["package"]["version"] = "2.0.0-beta.1234"
+            else:
+                for package in expected["package"]:
+                    if package["name"] in local_names and "source" not in package:
+                        package["version"] = "2.0.0-beta.1234"
             self.assertEqual(
-                (self.root / name).read_text(),
-                original.replace('version = "2.0.0-beta-0"', 'version = "2.0.0-beta.1234"'),
+                tomllib.loads((self.root / name).read_text()),
+                expected,
             )
 
 

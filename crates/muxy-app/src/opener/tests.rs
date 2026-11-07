@@ -1,4 +1,4 @@
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 use std::os::unix::ffi::OsStringExt;
 
 use super::*;
@@ -114,7 +114,7 @@ fn editor_selection_and_failed_launch_fall_back_without_losing_context() {
     assert!(resolve("https://example.com", &remote.context).is_some());
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 #[test]
 fn linux_openers_preserve_literal_paths_and_use_the_file_manager_for_reveal() {
     let temp = Temp::new();
@@ -238,4 +238,47 @@ fn the_file_manager_comes_before_editors_in_their_preferred_order() {
     assert_eq!(listed, [(FINDER, true), ("zed", false), ("code", false)]);
     assert_eq!(apps[1].name, "Zed");
     assert_eq!(apps[1].path, Path::new("/Applications/Zed.app"));
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_openers_hand_files_to_the_shell_and_editors_to_their_command_shims() {
+    let temp = Temp::new();
+    let directory = temp.0.join("project space");
+    std::fs::create_dir(&directory).expect("project");
+    let bin = temp.0.join("bin");
+    std::fs::create_dir(&bin).expect("bin");
+    std::fs::write(bin.join("code.cmd"), "").expect("shim");
+    let path = muxy_core::executable::find_with_extensions(
+        std::slice::from_ref(&bin),
+        "code",
+        ".EXE;.CMD",
+    )
+    .expect("editor");
+    let location = file(directory.join("main.rs"));
+    let editor = Editor {
+        bundle: "com.microsoft.VSCode".into(),
+        name: "Visual Studio Code".into(),
+        path,
+        rank: 0,
+    };
+    let command = editor.command(&location, &directory);
+    assert_eq!(command.program, bin.join("code.cmd"));
+    assert_eq!(
+        command.args,
+        [
+            directory.as_os_str().to_owned(),
+            "--goto".into(),
+            format!("{}:12:3", location.path.display()).into(),
+        ]
+    );
+    let system = Launch::system([location.path.as_os_str().to_owned()]);
+    assert!(system.program.as_os_str().is_empty(), "the shell opens it");
+    assert_eq!(
+        finder(&location.path).select.as_deref(),
+        Some(location.path.as_path())
+    );
+    let folder = finder(&directory);
+    assert_eq!(folder.select, None);
+    assert_eq!(folder.args, [directory.into_os_string()]);
 }

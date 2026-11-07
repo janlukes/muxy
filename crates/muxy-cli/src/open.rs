@@ -4,8 +4,7 @@ use std::path::Path;
 /// Opens `word`, a folder, in the desktop app. Without it, or over SSH, the
 /// folder opens in the terminal UI instead.
 pub(crate) fn run(word: &Path) -> Result<(), Box<dyn Error>> {
-    let folder = word
-        .canonicalize()
+    let folder = muxy_core::files::canonicalize(word)
         .ok()
         .filter(|path| path.is_dir())
         .ok_or_else(|| {
@@ -44,15 +43,18 @@ pub(crate) fn desktop_app(folder: Option<&Path>) -> bool {
         .is_ok_and(|status| status.success())
 }
 
-/// On Linux the app is installed beside this tool. It needs a desktop
-/// session to open in.
+/// On Linux and Windows the app is installed beside this tool. On Linux it
+/// needs a desktop session to open in.
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn desktop_app(folder: Option<&Path>) -> bool {
     let Ok(executable) = muxy_core::executable::current_path() else {
         return false;
     };
-    desktop_session(|name| std::env::var_os(name))
-        && launch(&executable.with_file_name("muxy-app"), folder)
+    (cfg!(windows) || desktop_session(|name| std::env::var_os(name)))
+        && launch(
+            &muxy_core::executable::sibling(&executable, "muxy-app"),
+            folder,
+        )
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -67,17 +69,12 @@ fn desktop_session(variable: impl Fn(&str) -> Option<std::ffi::OsString>) -> boo
 /// that, or an app still running after a moment, is a folder opened.
 #[cfg(not(target_os = "macos"))]
 fn launch(app: &Path, folder: Option<&Path>) -> bool {
-    use std::os::unix::process::CommandExt;
-    use std::process::{Command, Stdio};
     use std::time::{Duration, Instant};
-    let Ok(mut child) = Command::new(app)
-        .args(folder)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .process_group(0)
-        .spawn()
-    else {
+    let arguments: Vec<_> = folder
+        .map(|folder| folder.as_os_str().to_owned())
+        .into_iter()
+        .collect();
+    let Ok(mut child) = muxy_client::local::spawn_detached(app, &arguments) else {
         return false;
     };
     let settled = Instant::now() + Duration::from_millis(500);

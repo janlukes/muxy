@@ -12,7 +12,8 @@ pub(crate) enum InputMode {
 
 impl InputMode {
     pub(crate) fn resolve(input: &str) -> Self {
-        let value = input.trim();
+        let value = super::path_service::from_native(input.trim());
+        let value = value.as_str();
         let explicit = value.starts_with('/')
             || value == "~"
             || value.starts_with("~/")
@@ -86,6 +87,7 @@ impl Session {
     pub(crate) fn remote(home: &str, project_paths: Vec<String>) -> Self {
         let home = super::path_service::standardize(home);
         let mut session = Self::new(&home, project_paths);
+        session.path_service.remote = true;
         session.path_service.home_directory.clone_from(&home);
         session.search_root_path = home;
         session.remote = true;

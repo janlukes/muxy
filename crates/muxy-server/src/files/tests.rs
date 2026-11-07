@@ -9,6 +9,7 @@ use muxy_protocol::{
     FileContent, MAX_FILE_BYTES, OperationId, ProjectDescriptor, ProjectId, ProjectIntent,
     ProjectMutation,
 };
+#[cfg(unix)]
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::sync::mpsc;
 
@@ -22,7 +23,7 @@ impl Workspace {
     pub(super) fn new() -> Self {
         let path = std::env::temp_dir().join(format!("muxy-files-{}", OperationId::new()));
         std::fs::create_dir(&path).unwrap();
-        let path = path.canonicalize().unwrap();
+        let path = muxy_core::files::canonicalize(&path).unwrap();
         let (send, _) = mpsc::channel();
         let registry = Registry::new(crate::ServerSettings::default(), send);
         let project = ProjectId::new();
@@ -32,7 +33,7 @@ impl Workspace {
                 mutation: ProjectMutation::Create(ProjectDescriptor {
                     id: project,
                     home: false,
-                    directory: wire_path(&path),
+                    directory: ServerPath::from_path(&path).unwrap(),
                     name: "Test".into(),
                     icon: None,
                     logo: None,
@@ -89,20 +90,33 @@ fn atomic_utf8_writes_preserve_modes_and_enforce_both_limits() {
             size: 8
         })
     );
-    std::fs::set_permissions(
-        workspace.path.join("note"),
-        std::fs::Permissions::from_mode(0o751),
-    )
-    .unwrap();
-    workspace.write("note", "new").unwrap();
-    assert_eq!(
-        std::fs::metadata(workspace.path.join("note"))
-            .unwrap()
-            .permissions()
-            .mode()
-            & 0o777,
-        0o751
-    );
+    #[cfg(unix)]
+    {
+        std::fs::set_permissions(
+            workspace.path.join("note"),
+            std::fs::Permissions::from_mode(0o751),
+        )
+        .unwrap();
+        workspace.write("note", "new").unwrap();
+        assert_eq!(
+            std::fs::metadata(workspace.path.join("note"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o751
+        );
+    }
+    #[cfg(windows)]
+    {
+        let open = std::fs::File::open(workspace.path.join("note")).unwrap();
+        workspace.write("note", "new").unwrap();
+        drop(open);
+        assert_eq!(
+            std::fs::read_to_string(workspace.path.join("note")).unwrap(),
+            "new"
+        );
+    }
     let large = "a".repeat(MAX_FILE_BYTES);
     workspace.write("large", &large).unwrap();
     assert!(
@@ -207,8 +221,14 @@ fn mkdir_rename_and_move_do_not_overwrite_collisions() {
 fn root_aliases_and_traversal_cannot_be_mutated() {
     let workspace = Workspace::new();
     std::fs::create_dir(workspace.path.join("nested")).unwrap();
+    #[cfg(unix)]
     symlink(".", workspace.path.join("root-link")).unwrap();
-    for root in ["", ".", "nested/..", "root-link"] {
+    let roots: &[&str] = if cfg!(unix) {
+        &["", ".", "nested/..", "root-link"]
+    } else {
+        &["", ".", "nested/..", "nested\\.."]
+    };
+    for &root in roots {
         assert!(
             matches!(workspace.files(FilesAction::Stat(p(root))).unwrap(), FilesReply::Info(info) if info.is_directory && info.path == p(""))
         );
@@ -232,12 +252,18 @@ fn root_aliases_and_traversal_cannot_be_mutated() {
         );
         assert!(workspace.files(FilesAction::Delete(vec![p(root)])).is_err());
     }
-    for escape in ["../file", "nested/../../file", "/tmp/file"] {
+    let mut escapes = vec!["../file", "nested/../../file", "/tmp/file"];
+    // On Unix these are ordinary names.
+    if cfg!(windows) {
+        escapes.extend(["C:/file", "C:file", "\\\\?\\C:\\file", "..\\file"]);
+    }
+    for escape in escapes {
         assert!(workspace.write(escape, "x").is_err());
         assert!(workspace.files(FilesAction::Read(p(escape))).is_err());
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn links_follow_internal_targets_and_reject_external_dangling_and_cyclic_targets() {
     let workspace = Workspace::new();

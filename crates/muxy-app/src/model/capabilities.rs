@@ -14,6 +14,8 @@ fn backend(feature: Feature) -> Capability {
         Feature::CommandLineTool => crate::cli_install::CAPABILITY,
         Feature::Updates => crate::updater::CAPABILITY,
         Feature::AppHiding => Capability::of(cfg!(target_os = "macos")),
+        Feature::BrowserPanes | Feature::SshRemotes => Capability::of(!cfg!(windows)),
+        Feature::PairedRemotes => Capability::Supported,
     }
 }
 
@@ -27,6 +29,20 @@ pub(crate) fn backends() -> Capabilities {
 }
 
 impl AppModel {
+    pub(crate) fn remote_backends_available(&self) -> bool {
+        self.supports(Feature::SshRemotes) || self.supports(Feature::PairedRemotes)
+    }
+
+    pub(crate) fn supports_remote(&self, server: muxy_app_core::ServerId) -> bool {
+        self.settings.server(server).is_some_and(|entry| {
+            self.supports(if entry.paired.is_some() {
+                Feature::PairedRemotes
+            } else {
+                Feature::SshRemotes
+            })
+        })
+    }
+
     pub(crate) fn supports(&self, feature: Feature) -> bool {
         self.capabilities.supports(feature)
     }

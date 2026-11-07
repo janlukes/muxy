@@ -1,3 +1,6 @@
+// Most of these run extension scripts, which Windows builds can't yet.
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
+
 use super::*;
 use crate::model::tests::stub_boot;
 use gpui::TestAppContext;

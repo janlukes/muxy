@@ -15,7 +15,7 @@ impl Profile {
         let (events, _) = std::sync::mpsc::channel();
         Registry::persistent(
             ServerSettings {
-                default_shell: Some("/bin/sh".into()),
+                default_shell: Some(crate::test_support::shell()),
                 ..ServerSettings::default()
             },
             events,
@@ -37,7 +37,8 @@ fn reservation_survives_restart_before_pty_start() -> TestResult {
     let info = SessionInfo {
         id: registry.reserve_start()?,
         project: registry.home_project(),
-        directory: ServerPath(b"/tmp".to_vec()),
+        directory: ServerPath::from_path(&crate::test_support::folder())
+            .map_err(|code| format!("{code:?}"))?,
     };
     registry.catalog.reserve(operation, &info)?;
     drop(registry);
@@ -46,7 +47,7 @@ fn reservation_survives_restart_before_pty_start() -> TestResult {
         registry.create_project_session(
             info.project,
             operation,
-            Path::new("/tmp"),
+            &crate::test_support::folder(),
             Size { cols: 80, rows: 24 }
         )?,
         info

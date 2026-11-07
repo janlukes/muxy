@@ -23,6 +23,7 @@
 "%@ is also bound to command: %@" = "%@ is also bound to command: %@";
 "%@ is an unrelated link; move it before installing Muxy." = "%@ is an unrelated link; move it before installing Muxy.";
 "%@ is checked out in another worktree, so this one stays on its branch." = "%@ is checked out in another worktree, so this one stays on its branch.";
+"%@ is installed with a command launcher, which Windows can't hand a prompt of several lines to." = "%@ is installed with a command launcher, which Windows can't hand a prompt of several lines to.";
 "%@ is larger than 100 MiB, the most Muxy sends to %@." = "%@ is larger than 100 MiB, the most Muxy sends to %@.";
 "%@ is no longer available. Try again." = "%@ is no longer available. Try again.";
 "%@ is not installed, so there is nothing to open this with." = "%@ is not installed, so there is nothing to open this with.";
@@ -238,6 +239,7 @@
 "Browse language extensions…" = "Browse language extensions…";
 "Browser" = "Browser";
 "Browser Profile" = "Browser Profile";
+"Browser tabs are not available on this platform yet." = "Browser tabs are not available on this platform yet.";
 "Browse…" = "Browse…";
 "Browsing" = "Browsing";
 "Built-in" = "Built-in";
@@ -1006,6 +1008,7 @@
 "Notes about imported terminal settings. Your original configuration is preserved." = "Notes about imported terminal settings. Your original configuration is preserved.";
 "Nothing is staged. Stage changes first or include unstaged changes." = "Nothing is staged. Stage changes first or include unstaged changes.";
 "Notifications are turned off for Muxy in System Settings." = "Notifications are turned off for Muxy in System Settings.";
+"Notifications are turned off for Muxy in Windows Settings." = "Notifications are turned off for Muxy in Windows Settings.";
 "OK" = "OK";
 "Off" = "Off";
 "Offline transcription failed. Check whisper-cli, the voice model and the Silero speech detection model." = "Offline transcription failed. Check whisper-cli, the voice model and the Silero speech detection model.";
@@ -1063,6 +1066,7 @@
 "Pair with Another Computer" = "Pair with Another Computer";
 "Pair with Link…" = "Pair with Link…";
 "Pair with another computer, or add one you reach over SSH, to work with its projects here." = "Pair with another computer, or add one you reach over SSH, to work with its projects here.";
+"Paired remote servers are not available on this platform yet." = "Paired remote servers are not available on this platform yet.";
 "Paired with the other computer." = "Paired with the other computer.";
 "Paired with this computer" = "Paired with this computer";
 "Pairing Link" = "Pairing Link";
@@ -1271,6 +1275,7 @@
 "SSH command" = "SSH command";
 "SSH connected. Install muxy-server to finish setting up this server." = "SSH connected. Install muxy-server to finish setting up this server.";
 "SSH host" = "SSH host";
+"SSH remote servers are not available on this platform yet." = "SSH remote servers are not available on this platform yet.";
 "Same as App" = "Same as App";
 "Save" = "Save";
 "Save settings, themes, extension preferences, projects, workspaces, and terminal layouts to a .muxy file." = "Save settings, themes, extension preferences, projects, workspaces, and terminal layouts to a .muxy file.";
@@ -1368,6 +1373,7 @@
 "Show each agent's icon, or the icon of the project it runs in." = "Show each agent's icon, or the icon of the project it runs in.";
 "Show how long ago each completed or idle agent finished working." = "Show how long ago each completed or idle agent finished working.";
 "Show idle time" = "Show idle time";
+"Show in File Explorer" = "Show in File Explorer";
 "Show in File Manager" = "Show in File Manager";
 "Show project colors" = "Show project colors";
 "Show project icons or hide the sidebar in Project Focused. Tab Focused and Agents Focused always hide it when collapsed." = "Show project icons or hide the sidebar in Project Focused. Tab Focused and Agents Focused always hide it when collapsed.";
@@ -1482,6 +1488,7 @@
 "The project directory isn't available on this Mac" = "The project directory isn't available on this Mac";
 "The project or home directory could not be found." = "The project or home directory could not be found.";
 "The project's tabs changed. Choose the layout again to confirm replacement." = "The project's tabs changed. Choose the layout again to confirm replacement.";
+"The prompt is too long for Windows to hand to %@." = "The prompt is too long for Windows to hand to %@.";
 "The proxy settings contain characters that can't be used" = "The proxy settings contain characters that can't be used";
 "The selected 1.x configuration contains no supported settings or projects." = "The selected 1.x configuration contains no supported settings or projects.";
 "The selected AI provider \"%@\" is no longer supported. Choose another one in Settings → AI." = "The selected AI provider \"%@\" is no longer supported. Choose another one in Settings → AI.";
@@ -1665,6 +1672,8 @@
 "Width 480–1200; height 280–800 pixels." = "Width 480–1200; height 280–800 pixels.";
 "Width in pixels for a new workspace window when no saved bounds exist." = "Width in pixels for a new workspace window when no saved bounds exist.";
 "Window size" = "Window size";
+"Windows refused a notification: %@" = "Windows refused a notification: %@";
+"Windows refused to set up notifications: %@" = "Windows refused to set up notifications: %@";
 "Work finished and is ready to review." = "Work finished and is ready to review.";
 "Work is in progress." = "Work is in progress.";
 "Work is paused." = "Work is paused.";

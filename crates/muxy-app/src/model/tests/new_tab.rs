@@ -1,6 +1,7 @@
 use super::*;
 use crate::views::project_picker::Purpose;
 use muxy_core::shortcuts::ShortcutId;
+#[cfg(not(windows))]
 use std::sync::{Arc, Mutex};
 
 fn open_add_project(cx: &mut VisualTestContext) {
@@ -102,7 +103,7 @@ fn saved_projects_open_tabs_and_win_over_folders_and_pending_searches(cx: &mut T
 fn folder_search_runs_below_saved_project_matches_and_without_them(cx: &mut TestAppContext) {
     let root = tempfile::tempdir().expect("root");
     let saved = root.path().join("Saved");
-    let folder = root.path().join("nested/Needle Unsaved");
+    let folder = root.path().join("nested").join("Needle Unsaved");
     for path in [&saved, &folder] {
         std::fs::create_dir_all(path).expect("folder");
     }
@@ -206,6 +207,7 @@ fn add_project_search_excludes_saved_folders_before_limiting_results(cx: &mut Te
     });
 }
 
+#[cfg(not(windows))]
 #[gpui::test]
 fn server_matches_keep_matching_folders_selectable_and_completable(cx: &mut TestAppContext) {
     let root = tempfile::tempdir().expect("root");
@@ -675,6 +677,7 @@ fn invalid_terminal_paths_never_create_folders_projects_or_tabs(cx: &mut TestApp
     assert!(view.read_with(cx, |model, _| model.overlay.is_none()));
 }
 
+#[cfg(not(windows))]
 #[gpui::test]
 fn saved_remote_projects_open_tabs_and_servers_open_terminals_in_their_home(
     cx: &mut TestAppContext,
@@ -742,6 +745,7 @@ fn saved_remote_projects_open_tabs_and_servers_open_terminals_in_their_home(
     );
 }
 
+#[cfg(not(windows))]
 #[gpui::test]
 fn sidebar_add_project_menu_and_remote_button_remain_separate_in_each_layout(
     cx: &mut TestAppContext,
@@ -869,6 +873,7 @@ fn the_command_palette_and_shortcuts_open_and_switch_each_picker(cx: &mut TestAp
     assert!(view.read_with(cx, |model, _| model.state.home().tabs.is_empty()));
 }
 
+#[cfg(not(windows))]
 fn show_remote_folder_picker(
     view: &Entity<AppModel>,
     server: ServerId,
@@ -913,6 +918,7 @@ fn show_remote_folder_picker(
     load_folders(cx);
 }
 
+#[cfg(not(windows))]
 #[gpui::test]
 fn remote_paths_use_server_checks_and_only_adding_can_create_projects(cx: &mut TestAppContext) {
     let server = ServerId::new();
@@ -1014,6 +1020,7 @@ fn remote_paths_use_server_checks_and_only_adding_can_create_projects(cx: &mut T
 }
 
 #[gpui::test]
+#[cfg(not(windows))]
 fn a_server_target_connects_to_browse_on_enter_without_creating_a_terminal(
     cx: &mut TestAppContext,
 ) {
@@ -1076,6 +1083,7 @@ fn the_add_project_dropdown_is_available_without_saved_servers(cx: &mut TestAppC
     assert!(cx.debug_bounds("menu-label-Manage Devices…").is_some());
 }
 
+#[cfg(not(windows))]
 #[gpui::test]
 fn remote_projects_that_become_missing_cannot_open_tabs_from_stale_picker_rows(
     cx: &mut TestAppContext,

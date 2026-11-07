@@ -17,6 +17,38 @@ fn reason(feature: Feature) -> String {
 }
 
 #[gpui::test]
+fn paired_servers_remain_available_without_ssh(cx: &mut TestAppContext) {
+    use muxy_app_core::settings::{PairedServer, ServerEntry};
+    let mut paired = ServerEntry::paired(
+        "MacBook".into(),
+        PairedServer {
+            hosts: vec!["192.168.1.221".into()],
+            port: 4865,
+            fingerprint: "01".repeat(32),
+            device: muxy_protocol::DeviceId::new(),
+        },
+    );
+    let id = paired.id;
+    let (mut boot, _requests) = stub_boot(AppState::bootstrap().expect("state"));
+    boot.settings.servers.push(paired.clone());
+    paired.id = ServerId::new();
+    paired.paired = None;
+    paired.ssh = "macbook".into();
+    let ssh = paired.id;
+    boot.settings.servers.push(paired);
+    let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
+    view.update(cx, |model, _| {
+        without(model, &[Feature::SshRemotes]);
+        assert!(model.remote_backends_available());
+        assert!(model.supports_remote(id));
+        assert!(!model.supports_remote(ssh));
+        without(model, &[Feature::PairedRemotes]);
+        assert!(!model.supports_remote(id));
+        assert!(!model.remote_backends_available());
+    });
+}
+
+#[gpui::test]
 fn commands_without_a_backend_report_why_and_start_nothing(cx: &mut TestAppContext) {
     let (mut boot, requests) = stub_boot(AppState::bootstrap().expect("state"));
     boot.settings.quick_terminal.enabled = true;
@@ -64,6 +96,56 @@ fn commands_without_a_backend_report_why_and_start_nothing(cx: &mut TestAppConte
         assert_eq!(model.state.home().tabs.len(), tabs);
         assert_eq!(requests.try_iter().count(), 0);
     });
+}
+
+#[gpui::test]
+fn browser_tabs_and_remote_servers_without_a_backend_report_why(cx: &mut TestAppContext) {
+    let (boot, _requests) = stub_boot(AppState::bootstrap().expect("state"));
+    let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
+    view.update(cx, |model, cx| {
+        without(model, &[Feature::BrowserPanes, Feature::SshRemotes]);
+        let tabs = model.state.home().tabs.len();
+        model.new_browser_tab(cx);
+        assert_eq!(model.error, Some(reason(Feature::BrowserPanes)));
+        assert_eq!(model.state.home().tabs.len(), tabs);
+        assert!(!model.browser_enabled(), "browser commands are hidden");
+        let form = DeviceForm {
+            name: "box".into(),
+            host: "box.local".into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            model.save_remote_server(None, &form, cx),
+            Err(reason(Feature::SshRemotes))
+        );
+        assert!(model.settings.servers.is_empty());
+    });
+}
+
+/// What Windows builds lack, and why: everything outside the desktop MVP.
+#[cfg(windows)]
+#[test]
+fn windows_reports_why_each_missing_feature_is_unavailable() {
+    let backends = crate::model::capabilities::backends();
+    for feature in [
+        Feature::ExtensionScripts,
+        Feature::ExtensionWebviews,
+        Feature::Voice,
+        Feature::QuickTerminal,
+        Feature::ClipboardImages,
+        Feature::CommandLineTool,
+        Feature::Updates,
+        Feature::AppHiding,
+        Feature::BrowserPanes,
+        Feature::SshRemotes,
+    ] {
+        assert_eq!(
+            backends.unsupported(feature),
+            Some(feature.unsupported_reason())
+        );
+    }
+    assert!(backends.has_backend(Feature::Notifications));
+    assert!(backends.has_backend(Feature::PairedRemotes));
 }
 
 #[gpui::test]

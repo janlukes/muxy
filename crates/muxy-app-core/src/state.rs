@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashSet};
-use std::os::unix::ffi::OsStringExt;
 use std::path::PathBuf;
 
 use muxy_protocol::SessionId;
@@ -277,7 +276,8 @@ impl AppState {
         Ok(())
     }
 
-    /// A remote server checks the folder itself when it creates the project.
+    /// A remote server checks the folder itself when it creates the project,
+    /// so its path may be absolute on Unix or on Windows.
     pub fn add_project(
         &mut self,
         server: ServerId,
@@ -315,7 +315,8 @@ impl AppState {
                 "project path must be an existing absolute directory".into(),
             ));
         }
-        if !directory.is_absolute() {
+        let path = crate::catalog::checked_server_path(directory)?;
+        if !path.is_absolute() {
             return Err(AppError::InvalidState(
                 "project path must be absolute".into(),
             ));
@@ -326,7 +327,7 @@ impl AppState {
             ));
         }
         let mut descriptor = muxy_protocol::ProjectDescriptor::new(
-            muxy_protocol::ServerPath(directory.into_os_string().into_vec()),
+            path,
             self.projects
                 .iter()
                 .filter(|project| project.server_id == server)

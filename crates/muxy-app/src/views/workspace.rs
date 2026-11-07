@@ -969,7 +969,7 @@ impl Render for AppModel {
         self.sync_toast(cx);
         self.sync_window_accessibility(window, cx);
         let (actions, actions_width) = titlebar::actions(self, window, cx);
-        #[cfg(target_os = "linux")]
+        #[cfg(not(target_os = "macos"))]
         self.fit_sidebar_to_window(window, actions_width, cx);
         let theme = &self.theme;
         let tab_focused = self.appearance.layout == muxy_app_core::settings::AppLayout::TabFocused

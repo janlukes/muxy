@@ -1,3 +1,5 @@
+#![cfg(unix)]
+
 use muxy_protocol::{
     ChannelId, HistoryCursor, HistoryPage, MAX_LINK_SPANS, Message, ProjectId, ReplyBody,
     RequestId, Size,

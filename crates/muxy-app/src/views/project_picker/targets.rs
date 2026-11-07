@@ -21,9 +21,15 @@ pub(super) fn registry(model: &AppModel) -> Registry<Target> {
             &local,
         ));
     }
+    if !model.remote_backends_available() {
+        return commands;
+    }
     let remote = tr!("Remote");
     for entry in &model.settings.servers {
         let server = entry.id;
+        if !model.supports_remote(server) {
+            continue;
+        }
         commands.register(
             Command::new(
                 format!("server-{server}"),

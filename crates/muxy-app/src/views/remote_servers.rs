@@ -405,9 +405,14 @@ pub(crate) fn list(
         })
         .children(rows)
         .child(muxy_ui::popover::divider(theme, m))
-        .child(
-            action("remote-add-server", Icon::Plus, tr!("Add Server…"))
-                .on_click(cx.listener(|model, _, _, cx| model.open_server_form(None, cx))),
+        .when(
+            model.supports(muxy_core::capability::Feature::SshRemotes),
+            |menu| {
+                menu.child(
+                    action("remote-add-server", Icon::Plus, tr!("Add Server…"))
+                        .on_click(cx.listener(|model, _, _, cx| model.open_server_form(None, cx))),
+                )
+            },
         )
         .child(
             action("remote-pair-server", Icon::Network, tr!("Pair with Link…"))
@@ -440,10 +445,16 @@ pub(crate) fn command(model: &AppModel, cx: &Context<AppModel>) -> Command<Handl
     let model = cx.weak_entity();
     Command::list("remote_servers", tr!("Devices…"), move |cx| {
         let mut servers = Registry::default();
-        let add: Handler = Rc::new(|model, _, cx| model.open_server_form(None, cx));
-        servers.register(
-            Command::new("remote-add-server", tr!("Add Server…"), add).keywords("Add Server"),
-        );
+        if model.upgrade().is_some_and(|model| {
+            model
+                .read(cx)
+                .supports(muxy_core::capability::Feature::SshRemotes)
+        }) {
+            let add: Handler = Rc::new(|model, _, cx| model.open_server_form(None, cx));
+            servers.register(
+                Command::new("remote-add-server", tr!("Add Server…"), add).keywords("Add Server"),
+            );
+        }
         let pair: Handler = Rc::new(|model, _, cx| model.open_pair_form(None, cx));
         servers.register(
             Command::new("remote-pair-server", tr!("Pair with Link…"), pair)

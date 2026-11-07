@@ -62,7 +62,9 @@ impl AppModel {
             dark,
             cx,
         ));
-        registry.register(super::remote_servers::command(self, cx));
+        if self.remote_backends_available() {
+            registry.register(super::remote_servers::command(self, cx));
+        }
         self.register_extension_commands(&mut registry);
         self.register_custom_commands(&mut registry);
         registry

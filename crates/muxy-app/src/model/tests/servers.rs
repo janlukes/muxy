@@ -1,3 +1,6 @@
+// Most of these are remote server tests, which Windows builds don't run.
+#![cfg_attr(windows, allow(dead_code, unused_imports))]
+
 use super::*;
 use muxy_app_core::settings::ServerEntry;
 use muxy_protocol::{ChannelId, ProjectDescriptor, ServerPath};
@@ -115,6 +118,7 @@ pub(super) fn from(server: ServerId, update: Update) -> (ServerId, u64, Update) 
     (server, 1, update)
 }
 
+#[cfg(unix)]
 pub(super) fn redraw(cx: &mut VisualTestContext) {
     cx.update(|window, _| window.refresh());
     cx.run_until_parked();
@@ -151,6 +155,7 @@ fn attach_local_and_remote(
     (local_pane, remote_pane)
 }
 
+#[cfg(unix)]
 #[gpui::test]
 fn panes_with_the_same_session_and_channel_on_two_servers_stay_apart(cx: &mut TestAppContext) {
     let remote = ServerId::new();
@@ -220,6 +225,7 @@ fn panes_with_the_same_session_and_channel_on_two_servers_stay_apart(cx: &mut Te
 
 /// The local Home with a tab on session 42, a remote server `box` with a Home
 /// and `api`, and the remote Home's tab on session 42 too.
+#[cfg(unix)]
 struct Scene {
     /// Kept so this computer's stub worker stays open.
     _local_work: std::sync::mpsc::Receiver<(u64, Work)>,
@@ -230,6 +236,7 @@ struct Scene {
     remote_pane: PaneId,
 }
 
+#[cfg(unix)]
 fn show_local_and_remote(
     cx: &mut TestAppContext,
 ) -> (Scene, Entity<AppModel>, &mut VisualTestContext) {
@@ -274,6 +281,7 @@ fn show_local_and_remote(
     (scene, view, cx)
 }
 
+#[cfg(unix)]
 #[gpui::test]
 fn a_remote_going_offline_leaves_local_panes_live_and_reconnects_when_opened(
     cx: &mut TestAppContext,
@@ -308,6 +316,7 @@ fn a_remote_going_offline_leaves_local_panes_live_and_reconnects_when_opened(
     );
 }
 
+#[cfg(unix)]
 #[gpui::test]
 fn a_restarted_server_lists_its_existing_sessions_once(cx: &mut TestAppContext) {
     let (boot, requests) = stub_boot(AppState::bootstrap().expect("state"));
@@ -364,6 +373,7 @@ fn reconnect(
     model.receive((server, generation, Update::Catalog(Ok(catalog))), cx);
 }
 
+#[cfg(unix)]
 #[gpui::test]
 fn project_edits_wait_until_the_server_they_were_made_for_answers(cx: &mut TestAppContext) {
     let remote = ServerId::new();

@@ -1,9 +1,8 @@
 //! Files only this user can read, replaced whole so a crash never leaves half
 //! of one, and changed by one process at a time.
 
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, File};
 use std::io::{self, Write};
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 
 /// Each writer gets its own temporary file, so writers in other processes
@@ -12,16 +11,15 @@ pub(super) fn write(path: &Path, contents: &[u8]) -> io::Result<()> {
     let mut temporary = path.as_os_str().to_owned();
     temporary.push(format!(".{}.tmp", uuid::Uuid::new_v4().simple()));
     let temporary = PathBuf::from(temporary);
-    let result = OpenOptions::new()
+    let result = muxy_core::files::private_file()
         .write(true)
         .create_new(true)
-        .mode(0o600)
         .open(&temporary)
         .and_then(|mut file| {
             file.write_all(contents)?;
             file.sync_all()
         })
-        .and_then(|()| fs::rename(&temporary, path));
+        .and_then(|()| muxy_core::files::replace_file(&temporary, path));
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
     }
@@ -33,12 +31,11 @@ pub(super) fn write(path: &Path, contents: &[u8]) -> io::Result<()> {
 pub(super) fn lock(path: &Path) -> io::Result<File> {
     let mut lock = path.as_os_str().to_owned();
     lock.push(".lock");
-    let file = OpenOptions::new()
+    let file = muxy_core::files::private_file()
         .read(true)
         .write(true)
         .create(true)
         .truncate(false)
-        .mode(0o600)
         .open(PathBuf::from(lock))?;
     file.lock()?;
     Ok(file)

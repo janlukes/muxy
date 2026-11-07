@@ -427,6 +427,7 @@ impl AppModel {
     ) {
         if self.quitting != Quitting::Idle
             || (server.is_local() && self.server_preferences.control_busy)
+            || (!server.is_local() && !self.supports_remote(server))
         {
             return;
         }

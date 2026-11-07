@@ -199,7 +199,9 @@ pub(crate) fn sidebar(model: &AppModel, window: &Window, cx: &mut Context<AppMod
                     footer.flex_col().gap(m.spacing3())
                 })
                 .bg(model.sidebar_background())
-                .child(super::remote_servers::section(model, cx))
+                .when(model.remote_backends_available(), |footer| {
+                    footer.child(super::remote_servers::section(model, cx))
+                })
                 .child(add_project_button(model, cx)),
         )
         .into_any_element()
@@ -362,12 +364,12 @@ impl AppModel {
             self.metrics.sidebar_expanded_min_width(),
             self.metrics.sidebar_expanded_max_width(),
         );
-        #[cfg(target_os = "linux")]
+        #[cfg(not(target_os = "macos"))]
         let width = width.min(self.sidebar_available_width);
         width
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(not(target_os = "macos"))]
     pub(crate) fn fit_sidebar_to_window(
         &mut self,
         window: &Window,

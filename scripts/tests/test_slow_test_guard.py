@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import slow_test_guard as GUARD  # noqa: E402
 
 
+@unittest.skipIf(os.name == "nt", "The Unix test guard uses pread and process-group signals")
 class SlowTestGuardTests(unittest.TestCase):
     def guarded(self, script):
         output = io.TextIOWrapper(io.BytesIO())

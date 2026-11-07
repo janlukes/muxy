@@ -231,6 +231,7 @@ fn percent_encode(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
     use super::*;
@@ -421,10 +422,12 @@ mod tests {
             ..proxy()
         };
         saved.save(&path)?;
+        #[cfg(unix)]
         let mode = fs::metadata(&path)
             .map_err(|error| Error::new("test", error))?
             .permissions()
             .mode();
+        #[cfg(unix)]
         assert_eq!(mode & 0o777, 0o600);
         assert_eq!(ProxySettings::load(&path)?, Some(saved));
         ProxySettings::remove(&path)?;

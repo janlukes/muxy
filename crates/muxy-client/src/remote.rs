@@ -189,7 +189,7 @@ fn connect(endpoint: &RemoteEndpoint) -> Result<Box<dyn ByteStream>, ClientError
 
 #[cfg(test)]
 mod tests {
-    use std::os::unix::net::UnixStream;
+    use muxy_protocol::transport::LocalStream as UnixStream;
     use std::sync::mpsc;
     use std::thread;
 

@@ -122,6 +122,7 @@ pub(super) fn unhex<const N: usize>(text: &str) -> Option<[u8; N]> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
     use super::*;
@@ -135,10 +136,12 @@ mod tests {
         PairingTokens::set(&path, studio, &[1; 32])?;
         PairingTokens::set(&path, laptop, &[2; 32])?;
         PairingTokens::set(&path, studio, &[3; 32])?;
+        #[cfg(unix)]
         let mode = fs::metadata(&path)
             .map_err(|error| Error::new("test", error))?
             .permissions()
             .mode();
+        #[cfg(unix)]
         assert_eq!(mode & 0o777, 0o600);
         let tokens = PairingTokens::load(&path)?;
         assert_eq!(tokens.token(studio), Some([3; 32]));

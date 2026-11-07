@@ -5,7 +5,32 @@
 <h1 align="center">Muxy</h1>
 
 <p align="center">Lightweight and Memory efficient terminal multiplexer built with Rust, GPUI and libghostty.</p>
-<p align="center"><a href="#install">Mac</a> | <a href="docs/user-guide/getting-started.md#linux-desktop-app">Linux</a> | <a href="https://apps.apple.com/de/app/muxy/id6762464046?l=en-GB">iOS</a> | <a href="https://play.google.com/store/apps/details?id=com.muxy.app">Android</a> | <a href="https://discord.gg/4eMXAmJQ2n">Discord</a></p>
+<p align="center"><a href="#windows-native-port">Windows</a> | <a href="#install">Mac</a> | <a href="docs/user-guide/getting-started.md#linux-desktop-app">Linux</a> | <a href="https://apps.apple.com/de/app/muxy/id6762464046?l=en-GB">iOS</a> | <a href="https://play.google.com/store/apps/details?id=com.muxy.app">Android</a> | <a href="https://discord.gg/4eMXAmJQ2n">Discord</a></p>
+
+## Windows native port
+
+This fork includes a working native **Windows x64** port of stable Muxy 2.3.0
+on the [`windows/stable-2.3`](https://github.com/janlukes/muxy/tree/windows/stable-2.3)
+branch. It runs the desktop app, server, and CLI directly on Windows using
+ConPTY; WSL is not required. The port also includes the GPUI fix for truncated
+non-ASCII tab titles and the Muxy application icon in the Windows executable.
+
+Local terminals, Unicode project paths and terminal titles, and paired TLS
+connections to macOS servers have been verified. Windows server paths are
+translated on the wire for compatibility with unmodified macOS/mobile clients.
+The latest native checks passed **789 Rust tests**, Clippy, formatting, and
+documentation checks. ARM64 is configured in CI but has not been verified locally.
+
+This remains an **experimental development build**, not an official signed
+Windows release. GUI startup freezes have been reported and remain under
+investigation. Browser panes, SSH remotes from the Windows desktop, extension
+scripts/webviews, voice, Quick Terminal, clipboard images, shell installation
+of the CLI, and automatic updates are currently unavailable.
+
+See [Windows build instructions and maintenance](docs/windows-port.md) for
+requirements, commands, known issues, and the stable-branch workflow. The
+upstream download links below provide the upstream macOS/Linux releases;
+build this fork's Windows branch from source.
 
 ## Screenshots
 
